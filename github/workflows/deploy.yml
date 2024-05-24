@@ -6,12 +6,19 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
+
+    - name: Run tests
+      run: |
+        echo "Running tests..."
+        # Ajoutez ici les commandes pour exécuter vos tests, par exemple:
+        # npm install
+        # npm test
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
@@ -22,4 +29,8 @@ jobs:
 
     - name: Sync S3 bucket
       run: |
-        aws s3 sync . s3://arqialuc --exclude ".git/*" --delete
+        aws s3 sync . s3://web-conversation-transcriptions --exclude ".git/*" --delete
+
+    - name: Notify success
+      run: |
+        echo "Déploiement réussi!"
