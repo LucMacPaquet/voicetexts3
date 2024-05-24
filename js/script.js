@@ -1,7 +1,6 @@
 // Configurer AWS
 AWS.config.update({
-    region: 'us-east-1', // Remplacez par la région de votre bucket
-  //  credentials: new AWS.Credentials('YOUR_ACCESS_KEY', 'YOUR_SECRET_KEY')
+    region: 'ca-central-1', // Remplacez par la région de votre bucket
 });
 
 const s3 = new AWS.S3();
