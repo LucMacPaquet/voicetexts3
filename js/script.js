@@ -1,6 +1,7 @@
-// Configurer AWS
-AWS.config.update({
-    region: 'ca-central-1', // Remplacez par la région de votre bucket
+// Configurer AWS avec Cognito Identity Pool
+AWS.config.region = 'ca-central-1'; // Région de votre bucket
+AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+    IdentityPoolId: 'ca-central-1:8c7debd2-da5e-488e-8c42-4986673bf19e' // Remplacez par votre ID de pool d'identités
 });
 
 const s3 = new AWS.S3();
