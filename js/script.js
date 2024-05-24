@@ -1,55 +1,16 @@
 // Configurer AWS
 AWS.config.update({
     region: 'us-east-1', // Remplacez par la région de votre bucket
-    credentials: new AWS.Credentials('ASIAWQC5JXED6UDUA7RZ', 'AWS_SECRET_ACCESS_KEY="LruKr3xl2m58xxagSBpw9svthSR9t4dS13LKgvtp"')
+    credentials: new AWS.Credentials('YOUR_ACCESS_KEY', 'YOUR_SECRET_KEY')
 });
 
 const s3 = new AWS.S3();
 
 const recordButton = document.getElementById('recordButton');
 const statusLabel = document.getElementById('statusLabel');
-const transcriptionElement = document.getElementById('transcription');
 
-let recognition;
-
-if ('webkitSpeechRecognition' in window) {
-    recognition = new webkitSpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'fr-FR';
-
-    recognition.onstart = () => {
-        statusLabel.textContent = 'Enregistrement en cours...';
-        recordButton.textContent = 'Arrêter';
-    };
-
-    recognition.onresult = (event) => {
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-                const transcript = event.results[i][0].transcript;
-                transcriptionElement.textContent += transcript + ' ';
-                uploadToS3(transcript);
-            } else {
-                interimTranscript += event.results[i][0].transcript;
-            }
-        }
-        transcriptionElement.textContent = interimTranscript;
-    };
-
-    recognition.onerror = (event) => {
-        console.error('Erreur de reconnaissance vocale:', event.error);
-        statusLabel.textContent = 'Erreur de reconnaissance vocale';
-        recordButton.textContent = 'Enregistrer';
-    };
-
-    recognition.onend = () => {
-        statusLabel.textContent = 'Enregistrement terminé';
-        recordButton.textContent = 'Enregistrer';
-    };
-} else {
-    statusLabel.textContent = 'La reconnaissance vocale n\'est pas supportée sur ce navigateur.';
-}
+let mediaRecorder;
+let audioChunks = [];
 
 recordButton.addEventListener('click', () => {
     if (recordButton.textContent === 'Enregistrer') {
@@ -60,24 +21,46 @@ recordButton.addEventListener('click', () => {
 });
 
 function startRecording() {
-    if (recognition) {
-        recognition.start();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('L\'enregistrement audio n\'est pas supporté sur ce navigateur.');
+        return;
     }
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+
+        mediaRecorder.addEventListener('dataavailable', event => {
+            audioChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener('stop', () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+            uploadToS3(audioBlob);
+            audioChunks = [];
+        });
+
+        recordButton.textContent = 'Arrêter';
+        statusLabel.textContent = 'Enregistrement en cours...';
+    }).catch(error => {
+        console.error('Erreur d\'accès au microphone:', error);
+        alert('Erreur d\'accès au microphone. Veuillez vérifier les permissions.');
+    });
 }
 
 function stopRecording() {
-    if (recognition) {
-        recognition.stop();
-    }
+    mediaRecorder.stop();
+    recordButton.textContent = 'Enregistrer';
+    statusLabel.textContent = 'Enregistrement terminé. Téléversement en cours...';
 }
 
-function uploadToS3(transcript) {
-    const fileName = `transcriptions/${Date.now()}.txt`;
+function uploadToS3(audioBlob) {
+    const fileName = `audio/${Date.now()}.mp3`;
     const params = {
-        Bucket: 'web-conversation-transcriptions', // Remplacez par le nom de votre bucket
+        Bucket: 'arqialuc', // Remplacez par le nom de votre bucket
         Key: fileName,
-        Body: transcript,
-        ContentType: 'text/plain'
+        Body: audioBlob,
+        ContentType: 'audio/mpeg'
     };
 
     s3.upload(params, (error, data) => {
